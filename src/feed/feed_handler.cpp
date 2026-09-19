@@ -13,14 +13,14 @@ double FeedStats::messages_per_second() const {
 
 void FeedStats::print() const {
     std::printf("\n--- Processing Statistics ---\n");
-    std::printf("Total Messages: %llu\n", total_messages);
-    std::printf("Add Orders:     %llu\n", add_orders);
-    std::printf("Executions:     %llu\n", order_executions);
-    std::printf("Cancels:        %llu\n", order_cancels);
-    std::printf("Deletes:        %llu\n", order_deletes);
-    std::printf("Replaces:       %llu\n", order_replaces);
-    std::printf("Trades:         %llu\n", trades);
-    std::printf("Unknown/Other:  %llu\n", unknown_messages);
+    std::printf("Total Messages: %llu\n", (unsigned long long)total_messages);
+    std::printf("Add Orders:     %llu\n", (unsigned long long)add_orders);
+    std::printf("Executions:     %llu\n", (unsigned long long)order_executions);
+    std::printf("Cancels:        %llu\n", (unsigned long long)order_cancels);
+    std::printf("Deletes:        %llu\n", (unsigned long long)order_deletes);
+    std::printf("Replaces:       %llu\n", (unsigned long long)order_replaces);
+    std::printf("Trades:         %llu\n", (unsigned long long)trades);
+    std::printf("Unknown/Other:  %llu\n", (unsigned long long)unknown_messages);
     std::printf("Elapsed Time:   %.3f seconds\n", elapsed_seconds);
     std::printf("Throughput:     %.0f msgs/sec\n", messages_per_second());
 }
@@ -61,7 +61,7 @@ void FeedHandler::process_file(const std::string& path) {
     size_t offset = 0;
     Message msg;
 
-    ScopedTimer timer;
+    ScopedTimer timer("FeedHandler");
 
     while (offset < len) {
         size_t parsed = parser_.parse_message(buf + offset, len - offset, msg);

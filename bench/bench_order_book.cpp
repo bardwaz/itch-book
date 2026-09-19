@@ -165,11 +165,13 @@ static void BM_OrderBook_GetDepth(benchmark::State& state) {
 BENCHMARK(BM_OrderBook_GetDepth)->Unit(benchmark::kNanosecond);
 
 // 7. BM_Parser_AddOrder: Parse a single AddOrder message from a pre-built binary buffer.
+// Measures raw parse throughput for the most common message type.
 static void BM_Parser_AddOrder(benchmark::State& state) {
     state.PauseTiming();
     ItchParser parser;
+    // 2-byte length prefix + 36-byte message body = 38 bytes total
     char buf[38] = {0};
-    write_be16(buf, 36); // Length
+    write_be16(buf, 36); // Length prefix
     buf[2] = 'A'; // Message Type
     write_be16(buf + 3, 1); // Stock Locate
     write_be16(buf + 5, 0); // Tracking Number
@@ -184,43 +186,68 @@ static void BM_Parser_AddOrder(benchmark::State& state) {
     state.ResumeTiming();
 
     for (auto _ : state) {
-        parser.parse_message(buf + 2, 36, msg);
+        parser.parse_message(buf, sizeof(buf), msg);
         benchmark::DoNotOptimize(msg);
     }
 }
 BENCHMARK(BM_Parser_AddOrder)->Unit(benchmark::kNanosecond);
 
 // 8. BM_Parser_MixedMessages: Parse a sequence of different message types.
+// Measures throughput when parsing a realistic mix of messages back-to-back.
 static void BM_Parser_MixedMessages(benchmark::State& state) {
     state.PauseTiming();
     ItchParser parser;
-    char buf[128] = {0};
+
+    // Build a buffer with 4 messages, each with 2-byte length prefix:
+    // AddOrder(38) + Execute(33) + Delete(21) + Replace(37) = 129 bytes
+    char buf[256] = {0};
     size_t offset = 0;
-    
-    // Add order (36 bytes)
-    buf[offset] = 'A';
-    offset += 36;
-    
-    // Execute order (31 bytes)
-    buf[offset] = 'E';
-    offset += 31;
-    
-    // Delete order (19 bytes)
-    buf[offset] = 'D';
-    offset += 19;
-    
-    // Replace order (35 bytes)
-    buf[offset] = 'U';
-    offset += 35;
-    
+
+    // AddOrder: 2-byte prefix + 36-byte body
+    write_be16(buf + offset, 36);
+    buf[offset + 2] = 'A';
+    write_be16(buf + offset + 3, 1);   // stock_locate
+    write_be64(buf + offset + 13, 1);  // order_ref
+    buf[offset + 21] = 'B';           // side
+    write_be32(buf + offset + 22, 100); // shares
+    write_be32(buf + offset + 34, 1500000); // price
+    offset += 38;
+
+    // OrderExecuted: 2-byte prefix + 31-byte body
+    write_be16(buf + offset, 31);
+    buf[offset + 2] = 'E';
+    write_be16(buf + offset + 3, 1);
+    write_be64(buf + offset + 13, 1);  // order_ref
+    write_be32(buf + offset + 21, 50); // executed_shares
+    offset += 33;
+
+    // OrderDelete: 2-byte prefix + 19-byte body
+    write_be16(buf + offset, 19);
+    buf[offset + 2] = 'D';
+    write_be16(buf + offset + 3, 1);
+    write_be64(buf + offset + 13, 2);  // order_ref
+    offset += 21;
+
+    // OrderReplace: 2-byte prefix + 35-byte body
+    write_be16(buf + offset, 35);
+    buf[offset + 2] = 'U';
+    write_be16(buf + offset + 3, 1);
+    write_be64(buf + offset + 13, 3);  // original_order_ref
+    write_be64(buf + offset + 21, 4);  // new_order_ref
+    write_be32(buf + offset + 29, 200); // shares
+    write_be32(buf + offset + 33, 1510000); // price
+    size_t total_len = offset + 37;
+
     Message msg;
     state.ResumeTiming();
 
     for (auto _ : state) {
-        parser.parse_message(buf, 36, msg);
-        parser.parse_message(buf + 36, 31, msg);
-        parser.parse_message(buf + 67, 19, msg);
-        parser.parse_message(buf + 86, 35, msg);
+        size_t pos = 0;
+        while (pos < total_len) {
+            size_t consumed = parser.parse_message(buf + pos, total_len - pos, msg);
+            if (consumed == 0) break;
+            pos += consumed;
+        }
         benchmark::DoNotOptimize(msg);
     }
 }

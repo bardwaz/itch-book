@@ -2,6 +2,7 @@
 add_library(itch-book-lib STATIC
     parser/itch_parser.cpp
     book/order_book.cpp
+    feed/feed_handler.cpp
 )
 
 target_include_directories(itch-book-lib PUBLIC
