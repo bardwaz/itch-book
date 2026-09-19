@@ -1,8 +1,10 @@
 # itch-book library
 file(GLOB_RECURSE LIB_SOURCES "parser/*.cpp" "book/*.cpp" "feed/*.cpp" "utils/*.cpp")
 
-# CMake requires at least one source file for a static library. Add dummy.cpp just in case.
-add_library(itch-book-lib STATIC ${LIB_SOURCES} dummy.cpp)
+add_library(itch-book-lib STATIC
+    parser/itch_parser.cpp
+    book/order_book.cpp
+)
 
 target_include_directories(itch-book-lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
