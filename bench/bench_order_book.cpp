@@ -32,10 +32,8 @@ void write_be48(char* buf, uint64_t val) {
 
 // 1. BM_OrderBook_AddOrder: Measures time to add a single order to an empty-ish book.
 static void BM_OrderBook_AddOrder(benchmark::State& state) {
-    state.PauseTiming();
     OrderBook book;
     uint64_t ref = 1;
-    state.ResumeTiming();
 
     for (auto _ : state) {
         book.add_order(ref++, Side::Buy, 1500000, 100, 123456789);
@@ -45,10 +43,8 @@ BENCHMARK(BM_OrderBook_AddOrder)->Unit(benchmark::kNanosecond);
 
 // 2. BM_OrderBook_AddDelete: Full order lifecycle (add then immediately delete).
 static void BM_OrderBook_AddDelete(benchmark::State& state) {
-    state.PauseTiming();
     OrderBook book;
     uint64_t ref = 1;
-    state.ResumeTiming();
 
     for (auto _ : state) {
         book.add_order(ref, Side::Buy, 1500000, 100, 123456789);
@@ -60,10 +56,8 @@ BENCHMARK(BM_OrderBook_AddDelete)->Unit(benchmark::kNanosecond);
 
 // 3. BM_OrderBook_ExecuteOrder: Add an order then partially execute it.
 static void BM_OrderBook_ExecuteOrder(benchmark::State& state) {
-    state.PauseTiming();
     OrderBook book;
     uint64_t ref = 1;
-    state.ResumeTiming();
 
     for (auto _ : state) {
         book.add_order(ref, Side::Buy, 1500000, 100, 123456789);
@@ -74,8 +68,8 @@ static void BM_OrderBook_ExecuteOrder(benchmark::State& state) {
 BENCHMARK(BM_OrderBook_ExecuteOrder)->Unit(benchmark::kNanosecond);
 
 // 4. BM_OrderBook_MixedWorkload: Realistic workload mix.
+// Pre-populates 10K orders, then runs a mix of operations per iteration.
 static void BM_OrderBook_MixedWorkload(benchmark::State& state) {
-    state.PauseTiming();
     OrderBook book;
     std::mt19937 gen(42);
     std::uniform_int_distribution<uint32_t> price_dist(1490000, 1510000);
@@ -88,13 +82,13 @@ static void BM_OrderBook_MixedWorkload(benchmark::State& state) {
 
     uint64_t ref = 1;
 
+    // Pre-populate the book (not measured — happens once before iterations)
     for (int i = 0; i < 10000; ++i) {
         Side side = side_dist(gen) == 0 ? Side::Buy : Side::Sell;
         book.add_order(ref, side, price_dist(gen), size_dist(gen) * 100, 123456789);
         live_orders.push_back(ref);
         ref++;
     }
-    state.ResumeTiming();
 
     for (auto _ : state) {
         int op = type_dist(gen);
@@ -103,17 +97,17 @@ static void BM_OrderBook_MixedWorkload(benchmark::State& state) {
             book.add_order(ref, side, price_dist(gen), size_dist(gen) * 100, 123456789);
             live_orders.push_back(ref);
             ref++;
-        } else if (op <= 80) { // Execute full (simulated via delete)
+        } else if (op <= 80) {
             size_t idx = gen() % live_orders.size();
             uint64_t target = live_orders[idx];
             book.delete_order(target);
             live_orders[idx] = live_orders.back();
             live_orders.pop_back();
-        } else if (op <= 90) { // Cancel partial
+        } else if (op <= 90) {
             size_t idx = gen() % live_orders.size();
             uint64_t target = live_orders[idx];
             book.cancel_order(target, 10);
-        } else { // Delete
+        } else {
             size_t idx = gen() % live_orders.size();
             uint64_t target = live_orders[idx];
             book.delete_order(target);
@@ -126,7 +120,6 @@ BENCHMARK(BM_OrderBook_MixedWorkload)->Unit(benchmark::kNanosecond);
 
 // 5. BM_OrderBook_GetBBO: BBO query after book is populated.
 static void BM_OrderBook_GetBBO(benchmark::State& state) {
-    state.PauseTiming();
     OrderBook book;
     std::mt19937 gen(42);
     std::uniform_int_distribution<uint32_t> price_dist(1490000, 1510000);
@@ -135,7 +128,6 @@ static void BM_OrderBook_GetBBO(benchmark::State& state) {
         book.add_order(ref++, Side::Buy, price_dist(gen), 100, 123456789);
         book.add_order(ref++, Side::Sell, price_dist(gen) + 20000, 100, 123456789);
     }
-    state.ResumeTiming();
 
     for (auto _ : state) {
         BBO bbo = book.get_bbo();
@@ -146,7 +138,6 @@ BENCHMARK(BM_OrderBook_GetBBO)->Unit(benchmark::kNanosecond);
 
 // 6. BM_OrderBook_GetDepth: Depth query after book is populated.
 static void BM_OrderBook_GetDepth(benchmark::State& state) {
-    state.PauseTiming();
     OrderBook book;
     std::mt19937 gen(42);
     std::uniform_int_distribution<uint32_t> price_dist(1490000, 1510000);
@@ -155,7 +146,6 @@ static void BM_OrderBook_GetDepth(benchmark::State& state) {
         book.add_order(ref++, Side::Buy, price_dist(gen), 100, 123456789);
         book.add_order(ref++, Side::Sell, price_dist(gen) + 20000, 100, 123456789);
     }
-    state.ResumeTiming();
 
     for (auto _ : state) {
         auto depth = book.get_depth(5);
@@ -167,7 +157,6 @@ BENCHMARK(BM_OrderBook_GetDepth)->Unit(benchmark::kNanosecond);
 // 7. BM_Parser_AddOrder: Parse a single AddOrder message from a pre-built binary buffer.
 // Measures raw parse throughput for the most common message type.
 static void BM_Parser_AddOrder(benchmark::State& state) {
-    state.PauseTiming();
     ItchParser parser;
     // 2-byte length prefix + 36-byte message body = 38 bytes total
     char buf[38] = {0};
@@ -183,7 +172,6 @@ static void BM_Parser_AddOrder(benchmark::State& state) {
     write_be32(buf + 34, 1500000); // Price
     
     Message msg;
-    state.ResumeTiming();
 
     for (auto _ : state) {
         parser.parse_message(buf, sizeof(buf), msg);
@@ -195,7 +183,6 @@ BENCHMARK(BM_Parser_AddOrder)->Unit(benchmark::kNanosecond);
 // 8. BM_Parser_MixedMessages: Parse a sequence of different message types.
 // Measures throughput when parsing a realistic mix of messages back-to-back.
 static void BM_Parser_MixedMessages(benchmark::State& state) {
-    state.PauseTiming();
     ItchParser parser;
 
     // Build a buffer with 4 messages, each with 2-byte length prefix:
@@ -239,7 +226,6 @@ static void BM_Parser_MixedMessages(benchmark::State& state) {
     size_t total_len = offset + 37;
 
     Message msg;
-    state.ResumeTiming();
 
     for (auto _ : state) {
         size_t pos = 0;

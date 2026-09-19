@@ -57,10 +57,6 @@ private:
     FeedStats stats_;
     BBOCallback bbo_callback_;
 
-    // Map order_ref -> stock_locate to handle messages that don't have stock_locate 
-    // Wait, the prompt said: "These messages have stock_locate in their common header fields."
-    // Actually, looking at the prompt: "The messages DO have stock_locate, so use that to find the book."
-
     // Dispatch a parsed message to the appropriate book
     void dispatch(const Message& msg);
 };
