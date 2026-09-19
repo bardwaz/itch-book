@@ -1,0 +1,11 @@
+build/
+.cache/
+*.o
+*.d
+compile_commands.json
+data/*.itch
+data/*.gz
+.idea/
+.vscode/
+*.suo
+*.ntb
