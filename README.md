@@ -170,7 +170,3 @@ All pulled automatically via CMake `FetchContent`:
 | [Google Benchmark](https://github.com/google/benchmark) | Microbenchmarks |
 | [tsl::robin_map](https://github.com/Tessil/robin-map) | Fast open-addressing hash map |
 | zlib | `.gz` decompression (system) |
-
-## License
-
-MIT
