@@ -1,13 +1,8 @@
 #pragma once
 #include <cstdint>
+#include "parser/itch_messages.h"  // For Side enum
 
 namespace itch {
-
-// Side is defined in parser/itch_messages.h, but we can use it directly
-enum class Side : char {
-    Buy = 'B',
-    Sell = 'S'
-};
 
 // Represents a single order in the book.
 // Part of an intrusive doubly-linked list at each price level.

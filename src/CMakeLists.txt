@@ -1,6 +1,4 @@
 # itch-book library
-file(GLOB_RECURSE LIB_SOURCES "parser/*.cpp" "book/*.cpp" "feed/*.cpp" "utils/*.cpp")
-
 add_library(itch-book-lib STATIC
     parser/itch_parser.cpp
     book/order_book.cpp
